@@ -13,7 +13,7 @@ public:
 
 private:
     QLineEdit *usernameInput;
-    QPushButton *connectButton;
+    QPushButton *startButton;
     QTcpSocket *socket;
 
 private slots:

@@ -8,14 +8,14 @@ LoginWindow::LoginWindow() {
     auto layout = new QVBoxLayout(this);
 
     usernameInput = new QLineEdit();
-    connectButton = new QPushButton("Connect");
+    startButton = new QPushButton("Start");
 
     layout->addWidget(usernameInput);
-    layout->addWidget(connectButton);
+    layout->addWidget(startButton);
 
     socket = new QTcpSocket(this);
 
-    connect(connectButton, &QPushButton::clicked,
+    connect(startButton, &QPushButton::clicked,
             this, &LoginWindow::connectToServer);
 }
 
