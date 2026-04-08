@@ -1,5 +1,6 @@
 #include "LoginWindow.h"
 #include "ChatWindow.h"
+#include "SessionSelectWindow.h"
 #include <QVBoxLayout>
 #include <QLineEdit>
 #include <QPushButton>
@@ -16,18 +17,18 @@ LoginWindow::LoginWindow() {
     socket = new QTcpSocket(this);
 
     connect(startButton, &QPushButton::clicked,
-            this, &LoginWindow::connectToServer);
+            this, &LoginWindow::OpenSessionSelectWindow);
 }
 
-void LoginWindow::connectToServer() {
-    socket->connectToHost("127.0.0.1", 54000);
+void LoginWindow::OpenSessionSelectWindow()
+{
+    QString username = usernameInput->text();
 
-    if (socket->waitForConnected()) {
-        QString username = usernameInput->text();
-        socket->write(("REGISTER:" + username).toStdString().c_str());
+    if(username.isEmpty())
+        return;
 
-        auto chat = new ChatWindow(socket, username);
-        chat->show();
-        this->close();
-    }
+    SessionSelectWindow* session = new SessionSelectWindow(username);
+    session->show();
+
+    this->hide();
 }

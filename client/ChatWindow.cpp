@@ -47,14 +47,18 @@ ChatWindow::ChatWindow(QTcpSocket* sock, QString user)
 
     connect(socket, &QTcpSocket::readyRead,
             this, &ChatWindow::readData);
+
+    socket->write(("REGISTER:" + username).toUtf8());
 }
 
 void ChatWindow::sendMessage() {
+
     QString target = userList->currentText();
     QString text = input->text();
 
     QString msg = "MSG:" + target + ":" + text;
-    socket->write(msg.toStdString().c_str());
+
+    socket->write(msg.toUtf8());
 
     chatBox->append("Me: " + text);
     input->clear();
@@ -71,10 +75,10 @@ void ChatWindow::readData() {
     }
     else if (msg.startsWith("FROM:")) {
         auto parts = msg.split(":");
-        chatBox->append(parts[1] + ": " + parts[2]);
+        if(parts.size() >= 3)
+            chatBox->append(parts[1] + ": " + parts[2]);
     }
-    else if (msg.startsWith("IMG:"))
-    {
+    else if (msg.startsWith("IMG:")) {
     QByteArray imgData =
         QByteArray::fromBase64(msg.mid(4).toUtf8());
 

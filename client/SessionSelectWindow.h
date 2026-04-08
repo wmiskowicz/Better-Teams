@@ -1,5 +1,6 @@
 #pragma once
 #include <QWidget>
+#include <QTcpSocket>
 
 class QPushButton;
 class QLineEdit;
@@ -20,6 +21,8 @@ private:
     QLineEdit* chatName;
     QLineEdit* portEdit;
     QLineEdit* ipEdit;
+
+    QTcpSocket* socket;
 
     QPushButton* hostBtn;
     QPushButton* joinBtn;

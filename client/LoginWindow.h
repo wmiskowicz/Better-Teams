@@ -17,5 +17,5 @@ private:
     QTcpSocket *socket;
 
 private slots:
-    void connectToServer();
+    void OpenSessionSelectWindow();
 };

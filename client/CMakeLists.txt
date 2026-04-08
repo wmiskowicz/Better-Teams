@@ -10,6 +10,7 @@ qt_standard_project_setup()
 add_executable(chat_client
     main.cpp
     LoginWindow.cpp
+    SessionSelectWindow.cpp
     ChatWindow.cpp
 )
 

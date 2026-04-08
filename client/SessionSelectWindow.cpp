@@ -1,12 +1,22 @@
 #include "SessionSelectWindow.h"
+#include "ChatWindow.h"
 #include <QVBoxLayout>
 #include <QPushButton>
 #include <QLineEdit>
 #include <QLabel>
+#include <QTcpSocket>
 
 SessionSelectWindow::SessionSelectWindow(QString user)
     : username(user)
 {
+    socket = new QTcpSocket(this);
+    socket->connectToHost("127.0.0.1", 54000);
+
+    if(!socket->waitForConnected(3000))
+    {
+        qDebug() << "Server connection failed";
+    }
+
     auto layout = new QVBoxLayout(this);
 
     chatName = new QLineEdit();
@@ -28,7 +38,6 @@ SessionSelectWindow::SessionSelectWindow(QString user)
 
     layout->addWidget(new QLabel("Join chat"));
     layout->addWidget(ipEdit);
-    layout->addWidget(portEdit);
     layout->addWidget(joinBtn);
 
     connect(hostBtn,&QPushButton::clicked,this,&SessionSelectWindow::hostClicked);
@@ -37,10 +46,28 @@ SessionSelectWindow::SessionSelectWindow(QString user)
 
 void SessionSelectWindow::hostClicked()
 {
-    emit hostChat(chatName->text(),portEdit->text().toInt());
+    QString name = chatName->text();
+
+    QString msg = "CREATE_ROOM:" + name + ":" + username;
+
+    socket->write(msg.toUtf8());
+
+    auto chat = new ChatWindow(socket, username);
+    chat->show();
+
+    this->close();
 }
 
 void SessionSelectWindow::joinClicked()
 {
-    emit joinChat(ipEdit->text(),portEdit->text().toInt());
+    QString room = chatName->text();
+
+    QString msg = "JOIN_ROOM:" + room + ":" + username;
+
+    socket->write(msg.toUtf8());
+
+    auto chat = new ChatWindow(socket, username);
+    chat->show();
+
+    this->close();
 }
