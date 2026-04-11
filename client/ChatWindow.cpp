@@ -1,12 +1,21 @@
 #include "ChatWindow.h"
+#include "SessionSelectWindow.h"
+
 #include <QVBoxLayout>
 #include <QTextEdit>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QComboBox>
+
 #include <QLabel>
-#include <QFileDialog>
 #include <QPixmap>
+#include <QBuffer>
+#include <QImage>
+
+#include <QCamera>
+#include <QVideoWidget>
+#include <QVideoSink>
+#include <QVideoFrame>
 
 ChatWindow::ChatWindow(QTcpSocket* sock, QString user)
     : socket(sock), username(user)
@@ -14,41 +23,46 @@ ChatWindow::ChatWindow(QTcpSocket* sock, QString user)
     auto layout = new QVBoxLayout(this);
 
     userList = new QComboBox();
+
+    remoteVideoFrame = new QLabel();
+    remoteVideoFrame->setMinimumSize(320,240);
+    remoteVideoFrame->setStyleSheet("background:black;");
+    remoteVideoFrame->setAlignment(Qt::AlignCenter);
+
+    videoWidget = new QVideoWidget();
+    videoWidget->setMinimumSize(320,240);
+
     chatBox = new QTextEdit();
+    chatBox->setReadOnly(true);
+
     input = new QLineEdit();
 
     sendBtn = new QPushButton("Send");
     leaveBtn = new QPushButton("Leave Chat");
-    chooseImageBtn = new QPushButton("Choose Image");
-
-    videoFrame = new QLabel();
-    videoFrame->setMinimumSize(320,240);
-    videoFrame->setStyleSheet("background:black;");
-    videoFrame->setAlignment(Qt::AlignCenter);
-
-    chatBox->setReadOnly(true);
 
     layout->addWidget(userList);
-    layout->addWidget(videoFrame);   // pole obrazu
+
+    layout->addWidget(new QLabel("Remote camera"));
+    layout->addWidget(remoteVideoFrame);
+
+    layout->addWidget(new QLabel("My camera"));
+    layout->addWidget(videoWidget);
+
     layout->addWidget(chatBox);
     layout->addWidget(input);
     layout->addWidget(sendBtn);
-    layout->addWidget(chooseImageBtn);
     layout->addWidget(leaveBtn);
 
-    connect(sendBtn, &QPushButton::clicked,
-            this, &ChatWindow::sendMessage);
+    connect(sendBtn,&QPushButton::clicked,
+            this,&ChatWindow::sendMessage);
 
-    connect(leaveBtn, &QPushButton::clicked,
-            this, &ChatWindow::leaveChat);
+    connect(leaveBtn,&QPushButton::clicked,
+            this,&ChatWindow::leaveChat);
 
-    connect(chooseImageBtn, &QPushButton::clicked,
-            this, &ChatWindow::chooseImage);
+    connect(socket,&QTcpSocket::readyRead,
+            this,&ChatWindow::readData);
 
-    connect(socket, &QTcpSocket::readyRead,
-            this, &ChatWindow::readData);
-
-    socket->write(("REGISTER:" + username).toUtf8());
+    startCamera();
 }
 
 void ChatWindow::sendMessage() {
@@ -65,56 +79,94 @@ void ChatWindow::sendMessage() {
 }
 
 void ChatWindow::readData() {
+
     QByteArray data = socket->readAll();
     QString msg = QString(data);
 
     if (msg.startsWith("USERS:")) {
+
         userList->clear();
         auto users = msg.mid(6).split(",");
         userList->addItems(users);
     }
+
     else if (msg.startsWith("FROM:")) {
+
         auto parts = msg.split(":");
+
         if(parts.size() >= 3)
             chatBox->append(parts[1] + ": " + parts[2]);
     }
     else if (msg.startsWith("IMG:")) {
-    QByteArray imgData =
-        QByteArray::fromBase64(msg.mid(4).toUtf8());
+        QByteArray imgData =
+            QByteArray::fromBase64(msg.mid(4).toUtf8());
 
-    QPixmap pix;
-    pix.loadFromData(imgData);
+        QPixmap pix;
+        pix.loadFromData(imgData);
 
-    videoFrame->setPixmap(
-        pix.scaled(videoFrame->size(),
-        Qt::KeepAspectRatio)
-    );
+        remoteVideoFrame->setPixmap(
+            pix.scaled(
+                remoteVideoFrame->size(),
+                Qt::KeepAspectRatio
+            )
+        );
     }
 }
 
 void ChatWindow::leaveChat()
 {
     socket->write("LEAVE");
-    socket->disconnectFromHost();
-    close();
+
+    SessionSelectWindow* session =
+        new SessionSelectWindow(username);
+
+    session->show();
+
+    this->close();
 }
 
-void ChatWindow::chooseImage()
+void ChatWindow::startCamera()
 {
-    QString file = QFileDialog::getOpenFileName(
-        this,
-        "Choose Image",
-        "",
-        "Images (*.png *.jpg *.bmp)"
-    );
+    camera = new QCamera(this);
 
-    if(file.isEmpty())
+    videoSink = new QVideoSink(this);
+
+    captureSession.setCamera(camera);
+
+    // lokalny podgląd
+    captureSession.setVideoOutput(videoWidget);
+
+    connect(videoSink,
+            &QVideoSink::videoFrameChanged,
+            this,
+            &ChatWindow::processFrame);
+
+    camera->start();
+}
+
+void ChatWindow::processFrame(const QVideoFrame &frame)
+{
+    QVideoFrame copy(frame);
+
+    if(!copy.isValid())
         return;
 
-    QPixmap img(file);
+    QImage img = copy.toImage();
 
-    videoFrame->setPixmap(
-        img.scaled(videoFrame->size(),
-        Qt::KeepAspectRatio)
-    );
+    if(img.isNull())
+        return;
+
+    img = img.scaled(320,240,Qt::KeepAspectRatio);
+
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+
+    buffer.open(QIODevice::WriteOnly);
+    img.save(&buffer,"JPG",50);
+
+    QByteArray base64 = bytes.toBase64();
+
+    QString msg = "IMG:" + QString(base64);
+
+    socket->write(msg.toUtf8());
 }

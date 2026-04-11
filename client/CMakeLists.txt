@@ -18,3 +18,12 @@ target_link_libraries(chat_client
     Qt6::Widgets
     Qt6::Network
 )
+
+find_package(Qt6 REQUIRED COMPONENTS Multimedia MultimediaWidgets)
+
+target_link_libraries(chat_client
+    Qt6::Widgets
+    Qt6::Network
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)

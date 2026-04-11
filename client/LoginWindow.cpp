@@ -28,7 +28,7 @@ void LoginWindow::OpenSessionSelectWindow()
         return;
 
     SessionSelectWindow* session = new SessionSelectWindow(username);
-    session->show();
 
-    this->hide();
+    session->show();
+    this->close();
 }

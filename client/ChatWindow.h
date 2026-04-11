@@ -1,6 +1,11 @@
 #pragma once
 #include <QWidget>
 #include <QTcpSocket>
+#include <QCamera>
+#include <QMediaCaptureSession>
+#include <QVideoWidget>
+#include <QVideoSink>
+#include <QTimer>
 
 class QTextEdit;
 class QLineEdit;
@@ -22,13 +27,22 @@ private:
     QLineEdit* input;
     QPushButton* sendBtn;
     QComboBox* userList;
-    QLabel* videoFrame;
+
     QPushButton* leaveBtn;
-    QPushButton* chooseImageBtn;
+
+    QCamera* camera;
+    QMediaCaptureSession captureSession;
+    QVideoWidget* videoWidget;
+
+    QVideoSink* videoSink;
+    QTimer* frameTimer;
+
+    QLabel* remoteVideoFrame;
 
 private slots:
     void sendMessage();
     void readData();
     void leaveChat();
-    void chooseImage();
+    void startCamera();
+    void processFrame(const QVideoFrame &frame);
 };
