@@ -10,7 +10,7 @@ class VideoDisplay(QFrame):
 
     def __init__(self):
         super().__init__()
-        self.setObjectName("VideoDisplay") # Targeted by style.qss
+        self.setObjectName("VideoDisplay")
         self.init_ui()
 
     def init_ui(self):

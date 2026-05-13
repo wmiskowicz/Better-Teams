@@ -24,10 +24,10 @@ class MainWindow(QWidget):
         # 2. Initialize sub-layouts without passing 'self'
         chat_and_screen_layout = QHBoxLayout() 
         
-        self.top_bar = TopBar()
+        self.controller = AppController(self)
         self.display = VideoDisplay()
+        self.top_bar = TopBar(self)
         self.sidebar = ChatSidebar()
-        self.controller = AppController(self.display.video_surface)
         
         # 3. Add widgets/layouts to their respective parents
         chat_and_screen_layout.addWidget(self.display, stretch=3)
@@ -38,6 +38,8 @@ class MainWindow(QWidget):
         
         main_layout.addWidget(self.top_bar)
         main_layout.addLayout(chat_and_screen_layout)
+        
+        self.controller.init_camera()
         
         
         
