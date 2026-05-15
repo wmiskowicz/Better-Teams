@@ -22,6 +22,7 @@ class ChatSidebar(QWidget):
 
         self.chat_msg_sent.connect(self.controller.chat_msg_send_handler)
         self.controller.message_recieved.connect(self.handle_msg_recieved)
+        self.controller.status_updated.connect(self.handle_status_updated)
         
         self.init_ui()
 
@@ -77,3 +78,6 @@ class ChatSidebar(QWidget):
 
     def handle_msg_recieved(self, sender: str, recieved_text: str):
         self.chat_history.append(f"{sender}: {recieved_text}")
+        
+    def handle_status_updated(self, status: str):
+        self.chat_history.append(status)

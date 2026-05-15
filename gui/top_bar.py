@@ -1,12 +1,14 @@
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QMenuBar, QApplication
 
+from controller.app_controller import AppController
+
 class TopBar(QMenuBar):
     """Subclass for the top navigation menu."""
     def __init__(self, parent_container): # Pass controller to link actions
         super().__init__()
         self.parent_container = parent_container
-        self.controller = parent_container.controller
+        self.controller: AppController = parent_container.controller
         self.init_ui()
 
     def init_ui(self):

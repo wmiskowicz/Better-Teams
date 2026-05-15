@@ -100,23 +100,26 @@ class TCPWorker(QObject):
     # ==========================================
 
     def _broadcast_packet(self, full_packet: bytes):
-        """Internal helper to dispatch framed bytes asynchronously across known peers."""
+        """Helper to dispatch bytes. We do this sequentially to prevent thread exhaustion."""
         peers = self._discovery_listener.get_peers()
         if not peers:
             return
 
         for name, (ip, port) in list(peers.items()):
-            threading.Thread(target=self._send_to_peer, args=(name, ip, port, full_packet), daemon=True).start()
+            # REMOVE threading.Thread here. 
+            # Sequential sending is safer when sending high-frequency image data.
+            self._send_to_peer(name, ip, port, full_packet)
 
     def _send_to_peer(self, name: str, ip: str, port: int, packet: bytes):
-        """Worker connection logic targeting an individual network socket descriptor."""
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(3.0)
+                # Tighten timeouts for video frames
+                s.settimeout(1.0) 
                 s.connect((ip, port))
                 s.sendall(packet)
         except Exception:
-            self.status_updated.emit(f"Peer {name} seems offline.")
+            # Optionally remove peer from discovery if they keep failing
+            pass
 
     def _read_exact(self, conn, num_bytes):
         """Helper ensuring exact byte requirements are extracted safely from the TCP stream block."""
