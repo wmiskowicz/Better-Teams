@@ -35,6 +35,7 @@ class MainWindow(QWidget):
         
         self.display.muteToggled.connect(self.controller.toggle_mute)
         self.display.hideToggled.connect(self.controller.toggle_camera)
+        self.controller.image_recieved.connect(self.display.display_remote_frame)
         
         main_layout.addWidget(self.top_bar)
         main_layout.addLayout(chat_and_screen_layout)

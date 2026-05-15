@@ -93,3 +93,19 @@ class VideoDisplay(QFrame):
     def handle_mute_clicked(self, checked):
         self.mute_btn.setText("Unmute" if checked else "Mute")
         self.muteToggled.emit(checked)
+        
+    def display_remote_frame(self, sender_ip, q_image):
+        """Displays the received QImage on the remote_view label."""
+        if not q_image.isNull():
+            # Convert QImage to Pixmap for display
+            pixmap = QPixmap.fromImage(q_image)
+            
+            # Scale to fit the current label size
+            # Using SmoothTransformation is key for video quality
+            scaled_pixmap = pixmap.scaled(
+                self.remote_view.size(), 
+                Qt.AspectRatioMode.KeepAspectRatio, 
+                Qt.TransformationMode.SmoothTransformation
+            )
+            
+            self.remote_view.setPixmap(scaled_pixmap)
