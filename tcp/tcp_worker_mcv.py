@@ -1,20 +1,26 @@
 import socket
 import threading
 import time
+import struct
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
+from PyQt6.QtGui import QImage
+from PyQt6.QtCore import QBuffer, QIODevice, QByteArray
 from zeroconf import ServiceInfo, Zeroconf, ServiceBrowser
+
+# --- PROTOCOL PAYLOAD CONSTANTS ---
+MSG_TYPE_CHAT = 1
+MSG_TYPE_IMAGE = 2
+HEADER_FORMAT = "!BI"  # 1 Byte unsigned Char (Type), 4 Bytes unsigned Int (Length)
+HEADER_SIZE = struct.calcsize(HEADER_FORMAT)  # Exactly 5 bytes
 
 class TCPWorker(QObject):
 
     # --- MVC COMMUNICATION SIGNALS ---
-    # Emitted when a peer sends a message: (sender_ip, message_text)
-    message_received = pyqtSignal(str, str)
-    # Emitted when a new peer is discovered: (peer_name, ip, port)
-    peer_discovered = pyqtSignal(str, str, int)
-    # Emitted when a peer drops off the local network
-    peer_lost = pyqtSignal(str)
-    # Emitted when the worker starts up to report its assignment details
-    status_updated = pyqtSignal(str)
+    message_received = pyqtSignal(str, str)     # (sender_ip, message_text)
+    image_received = pyqtSignal(str, QImage)    # (sender_ip, q_image)
+    peer_discovered = pyqtSignal(str, str, int) # (peer_name, ip, port)
+    peer_lost = pyqtSignal(str)                 # (peer_name)
+    status_updated = pyqtSignal(str)            # (status_text)
 
     # --- CONFIGURATION ---
     SERVICE_TYPE = "_mychat._tcp.local."
@@ -28,7 +34,6 @@ class TCPWorker(QObject):
         self._service_info = None
         self._browser = None
         
-        # Instantiate the internal discovery listener
         self._discovery_listener = ChatDiscoveryListener(self.MY_NAME, self.peer_discovered, self.peer_lost)
 
     # ==========================================
@@ -38,17 +43,14 @@ class TCPWorker(QObject):
     @pyqtSlot()
     def start(self):
         """Initializes the listener socket, starts networking threads, and registers Zeroconf."""
-        # 1. Start TCP Listener
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(('', 0)) 
         self._my_port = self._server_socket.getsockname()[1]
         self._server_socket.listen(5)
         
-        # Fire up the background server loop
         threading.Thread(target=self._listener_loop, daemon=True).start()
         self.status_updated.emit(f"Listening on Port: {self._my_port} | Searching for peers...")
 
-        # 2. Register Zeroconf Service
         local_ip = socket.gethostbyname(socket.gethostname())
         self._service_info = ServiceInfo(
             self.SERVICE_TYPE, 
@@ -58,21 +60,30 @@ class TCPWorker(QObject):
         )
         self._zc = Zeroconf()
         self._zc.register_service(self._service_info)
-        
-        # 3. Start Browser to discover peers
         self._browser = ServiceBrowser(self._zc, self.SERVICE_TYPE, self._discovery_listener)
 
     @pyqtSlot(str)
     def send_broadcast_message(self, message: str):
-        """Loops through known peers and sends the text string payload."""
-        peers = self._discovery_listener.get_peers()
-        if not peers:
-            self.status_updated.emit("No peers found yet...")
+        """Frames and broadcasts a text string to all discovered peers."""
+        payload = message.encode('utf-8')
+        header = struct.pack(HEADER_FORMAT, MSG_TYPE_CHAT, len(payload))
+        self._broadcast_packet(header + payload)
+
+    @pyqtSlot(QImage)
+    def send_broadcast_image(self, image: QImage):
+        """Frames and broadcasts a compressed QImage to all discovered peers."""
+        if image.isNull():
             return
 
-        for name, (ip, port) in list(peers.items()):
-            # Offload individual connections to background tasks to prevent UI hang
-            threading.Thread(target=self._send_to_peer, args=(name, ip, port, message), daemon=True).start()
+        # Compress QImage to raw JPEG bytes using Qt's internal buffer mechanics
+        byte_array = QByteArray()
+        buffer = QBuffer(byte_array)
+        buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+        image.save(buffer, "JPG", 75)  # 75: Optimal balance between compression size and visual quality
+        payload = byte_array.data()
+
+        header = struct.pack(HEADER_FORMAT, MSG_TYPE_IMAGE, len(payload))
+        self._broadcast_packet(header + payload)
 
     @pyqtSlot()
     def stop(self):
@@ -88,28 +99,60 @@ class TCPWorker(QObject):
     # PRIVATE METHODS
     # ==========================================
 
+    def _broadcast_packet(self, full_packet: bytes):
+        """Internal helper to dispatch framed bytes asynchronously across known peers."""
+        peers = self._discovery_listener.get_peers()
+        if not peers:
+            return
+
+        for name, (ip, port) in list(peers.items()):
+            threading.Thread(target=self._send_to_peer, args=(name, ip, port, full_packet), daemon=True).start()
+
+    def _send_to_peer(self, name: str, ip: str, port: int, packet: bytes):
+        """Worker connection logic targeting an individual network socket descriptor."""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(3.0)
+                s.connect((ip, port))
+                s.sendall(packet)
+        except Exception:
+            self.status_updated.emit(f"Peer {name} seems offline.")
+
+    def _read_exact(self, conn, num_bytes):
+        """Helper ensuring exact byte requirements are extracted safely from the TCP stream block."""
+        buffer = b""
+        while len(buffer) < num_bytes:
+            packet = conn.recv(num_bytes - len(buffer))
+            if not packet:
+                raise ConnectionError("Socket connection closed by remote peer.")
+            buffer += packet
+        return buffer
+
     def _listener_loop(self):
-        """Background loop accepting incoming client connections."""
+        """Background loop accepting incoming connections and parsing framing protocols."""
         while True:
             try:
                 conn, addr = self._server_socket.accept()
                 with conn:
-                    data = conn.recv(1024).decode('utf-8')
-                    if data:
-                        # Safely alert the controller about the incoming message payload
-                        self.message_received.emit(addr[0], data)
-            except Exception:
-                break  # Socket was closed or encountered an unrecoverable failure
+                    # 1. Read structural boundary frame header
+                    header_bytes = self._read_exact(conn, HEADER_SIZE)
+                    msg_type, payload_length = struct.unpack(HEADER_FORMAT, header_bytes)
 
-    def _send_to_peer(self, name: str, ip: str, port: int, message: str):
-        """Worker connection logic targeting individual network nodes."""
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(2.0)
-                s.connect((ip, port))
-                s.sendall(message.encode('utf-8'))
-        except Exception:
-            self.status_updated.emit(f"Peer {name} seems offline.")
+                    # 2. Read exact body slice boundaries
+                    payload = self._read_exact(conn, payload_length)
+
+                    # 3. Multiplex message types to their respective handlers
+                    if msg_type == MSG_TYPE_CHAT:
+                        text_message = payload.decode('utf-8')
+                        self.message_received.emit(addr[0], text_message)
+
+                    elif msg_type == MSG_TYPE_IMAGE:
+                        received_image = QImage.fromData(payload, "JPG")
+                        if not received_image.isNull():
+                            self.image_received.emit(addr[0], received_image)
+
+            except Exception:
+                break  # Break out cleanly if server socket gets closed by stop()
 
 
 # ==========================================
@@ -135,7 +178,6 @@ class ChatDiscoveryListener:
         if info:
             ip = socket.inet_ntoa(info.addresses[0])
             self._peers[name] = (ip, info.port)
-            # Propagate event out to main worker interface thread-safely
             self._discovery_signal.emit(name, ip, info.port)
 
     def update_service(self, zc, type_, name):
