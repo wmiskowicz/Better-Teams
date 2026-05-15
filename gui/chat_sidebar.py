@@ -66,24 +66,3 @@ class ChatSidebar(QWidget):
             self.chat_history.append(f"You: {text}")            
             self.message_input.clear()
 
-# Example of how to connect to the signal in your MainWindow
-class MainWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.resize(400, 500)
-        layout = QVBoxLayout(self)
-        
-        self.sidebar = ChatSidebar()
-        # Connect the custom signal to a slot (function)
-        self.sidebar.messageSent.connect(self.on_new_message)
-        
-        layout.addWidget(self.sidebar)
-
-    def on_new_message(self, msg):
-        print(f"Main window received signal! Message: {msg}")
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec())

@@ -41,5 +41,3 @@ class MainWindow(QWidget):
         
         self.controller.init_camera()
         
-        
-        
