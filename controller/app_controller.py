@@ -6,7 +6,7 @@ from tcp.tcp_worker_mcv import TCPWorker
 
 class AppController(QObject):
 
-    message_recieved = pyqtSignal(str)
+    message_recieved = pyqtSignal(str, str) # Sender, message
 
     """
     Controller class managing multimedia sessions and hardware state.
@@ -27,7 +27,7 @@ class AppController(QObject):
         
     def init_camera(self):
         self.video_output_widget = self.parent_container.display.video_surface
-        self.video_output_widget.videoSink().videoFrameChanged.connect(self.process_video_frame)
+        # self.video_output_widget.videoSink().videoFrameChanged.connect(self.process_video_frame)
 
         self.camera = QCamera(QMediaDevices.defaultVideoInput())
         self.capture_session.setCamera(self.camera)
@@ -46,7 +46,7 @@ class AppController(QObject):
         # 3. Connect signals to update your Views / Models
         self.network_thread.started.connect(self.tcp_worker.start)
         self.tcp_worker.message_received.connect(self.chat_msg_recieved_handler)
-        self.tcp_worker.status_updated.connect(self.chat_msg_recieved_handler)
+        # self.tcp_worker.status_updated.connect()
         
         # Clean cleanup loops upon exit
         self.network_thread.finished.connect(self.tcp_worker.stop)
@@ -57,8 +57,8 @@ class AppController(QObject):
     def chat_msg_send_handler(self, text_input):
         self.tcp_worker.send_broadcast_message(text_input)
 
-    def chat_msg_recieved_handler(self, recieved_text):
-        self.message_recieved.emit(recieved_text)
+    def chat_msg_recieved_handler(self, sender, recieved_text):
+        self.message_recieved.emit(sender, recieved_text)
         
     @pyqtSlot(bool)
     def toggle_mute(self, is_muted: bool):
@@ -84,30 +84,24 @@ class AppController(QObject):
         """
         self.audio_input.setDevice(device)
         
+
+    # def process_video_frame(self, frame):
+    #     """Intercepts the frame, compresses it, and sends it to the worker."""
+    #     if not self.tcp_worker.socket or not self.tcp_worker.socket.isOpen():
+    #         return
+
+    #     # 1. Convert QVideoFrame to QImage
+    #     image = frame.toImage()
+    #     if image.isNull():
+    #         return
+
+    #     # 2. Compress to bytes (JPEG)
+    #     byte_array = QByteArray()
+    #     buffer = QBuffer(byte_array)
+    #     buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+    #     image.save(buffer, "JPG", 70) # 70 is quality: balance between speed and clarity
         
-    def host_session(self):
-        self.tcp_worker.start_host(12345)
-
-    def join_session(self, ip):
-        self.tcp_worker.start_join(ip, 12345)
-
-    def process_video_frame(self, frame):
-        """Intercepts the frame, compresses it, and sends it to the worker."""
-        if not self.tcp_worker.socket or not self.tcp_worker.socket.isOpen():
-            return
-
-        # 1. Convert QVideoFrame to QImage
-        image = frame.toImage()
-        if image.isNull():
-            return
-
-        # 2. Compress to bytes (JPEG)
-        byte_array = QByteArray()
-        buffer = QBuffer(byte_array)
-        buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-        image.save(buffer, "JPG", 70) # 70 is quality: balance between speed and clarity
-        
-        # 3. Send via TCP
-        frame_bytes = byte_array.data()
-        self.tcp_worker.send_data(b'IMG:' + frame_bytes) 
+    #     # 3. Send via TCP
+    #     frame_bytes = byte_array.data()
+    #     self.tcp_worker.send_data(b'IMG:' + frame_bytes) 
         

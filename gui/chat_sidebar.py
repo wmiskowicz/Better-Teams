@@ -41,7 +41,6 @@ class ChatSidebar(QWidget):
         # History Display
         self.chat_history = QTextEdit()
         self.chat_history.setReadOnly(True)
-        self.chat_history.setText("Timon: aaaaa\nPumba: +1\nTimon: Kiedy liga?")
         self.chat_history.setStyleSheet("border: none; background: transparent;")
 
         # --- Message Input Area ---
@@ -76,6 +75,5 @@ class ChatSidebar(QWidget):
             self.chat_history.append(f"You: {text}")            
             self.message_input.clear()
 
-    def handle_msg_recieved(self, recieved_text: str):
-        text = recieved_text.strip()
-        self.chat_history.append(text)
+    def handle_msg_recieved(self, sender: str, recieved_text: str):
+        self.chat_history.append(f"{sender}: {recieved_text}")

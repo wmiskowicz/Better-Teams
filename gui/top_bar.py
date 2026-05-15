@@ -14,11 +14,11 @@ class TopBar(QMenuBar):
         file_menu = self.addMenu("File")
         
         host_action = QAction("Host Session", self)
-        host_action.triggered.connect(self.controller.host_session)
+        # host_action.triggered.connect(self.controller.host_session)
         file_menu.addAction(host_action)
 
         join_action = QAction("Join Session", self)
-        join_action.triggered.connect(self.controller.join_session)
+        # join_action.triggered.connect(self.controller.join_session)
         file_menu.addAction(join_action)
 
         file_menu.addSeparator()
