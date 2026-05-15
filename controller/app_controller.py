@@ -21,12 +21,6 @@ class AppController(QObject):
         self.audio_input = QAudioInput()
         self.capture_session.setAudioInput(self.audio_input)
                 
-        self.network_thread = QThread()
-        self.tcp_worker = TCPWorker()
-        self.tcp_worker.moveToThread(self.network_thread)
-
-        # self.tcp_worker.message_received.connect(self.handle_incoming_chat)
-        self.network_thread.start()
         self.setup_network_worker()
         
         
