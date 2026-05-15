@@ -27,7 +27,7 @@ class MainWindow(QWidget):
         self.controller = AppController(self)
         self.display = VideoDisplay()
         self.top_bar = TopBar(self)
-        self.sidebar = ChatSidebar()
+        self.sidebar = ChatSidebar(self)
         
         # 3. Add widgets/layouts to their respective parents
         chat_and_screen_layout.addWidget(self.display, stretch=3)

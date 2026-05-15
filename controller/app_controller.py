@@ -1,10 +1,13 @@
 from PyQt6.QtMultimedia import QMediaCaptureSession, QCamera, QAudioInput, QMediaDevices
-from PyQt6.QtCore import QObject, QThread, pyqtSlot
+from PyQt6.QtCore import QObject, QThread, pyqtSlot, pyqtSignal
 from PyQt6.QtCore import QBuffer, QIODevice, QByteArray
 
-from tcp.tcp_worker import TCPWorker
+from tcp.tcp_worker_mcv import TCPWorker
 
 class AppController(QObject):
+
+    message_recieved = pyqtSignal(str)
+
     """
     Controller class managing multimedia sessions and hardware state.
     Centralizes camera display management and sound blocking logic.
@@ -24,6 +27,7 @@ class AppController(QObject):
 
         # self.tcp_worker.message_received.connect(self.handle_incoming_chat)
         self.network_thread.start()
+        self.setup_network_worker()
         
         
         
@@ -36,7 +40,31 @@ class AppController(QObject):
         self.capture_session.setVideoOutput(self.video_output_widget)
         
         self.camera.start()
+
+    def setup_network_worker(self):
+        # 1. Initialize the thread and worker
+        self.network_thread = QThread()
+        self.tcp_worker = TCPWorker()
         
+        # 2. Push worker to the separate thread environment
+        self.tcp_worker.moveToThread(self.network_thread)
+        
+        # 3. Connect signals to update your Views / Models
+        self.network_thread.started.connect(self.tcp_worker.start)
+        self.tcp_worker.message_received.connect(self.chat_msg_recieved_handler)
+        self.tcp_worker.status_updated.connect(self.chat_msg_recieved_handler)
+        
+        # Clean cleanup loops upon exit
+        self.network_thread.finished.connect(self.tcp_worker.stop)
+        
+        # 4. Fire up the execution thread
+        self.network_thread.start()
+
+    def chat_msg_send_handler(self, text_input):
+        self.tcp_worker.send_broadcast_message(text_input)
+
+    def chat_msg_recieved_handler(self, recieved_text):
+        self.message_recieved.emit(recieved_text)
         
     @pyqtSlot(bool)
     def toggle_mute(self, is_muted: bool):

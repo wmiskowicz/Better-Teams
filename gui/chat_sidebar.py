@@ -3,16 +3,26 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QTextEdit, QLineEdit, QFrame)
 from PyQt6.QtCore import pyqtSignal, Qt
 
+from controller.app_controller import AppController
+
 class ChatSidebar(QWidget):
     """
     Subclass representing the sidebar.
     Emits a signal whenever a message is sent.
     """
     # Define a signal that carries a string (the message)
-    messageSent = pyqtSignal(str)
+    chat_msg_sent = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, parent_container):
         super().__init__()
+        self.parent_container = parent_container
+
+
+        self.controller: AppController = parent_container.controller
+
+        self.chat_msg_sent.connect(self.controller.chat_msg_send_handler)
+        self.controller.message_recieved.connect(self.handle_msg_recieved)
+        
         self.init_ui()
 
     def init_ui(self):
@@ -62,7 +72,10 @@ class ChatSidebar(QWidget):
         """Handler to grab text, emit signal, and clear the field."""
         text = self.message_input.text().strip()
         if text:
-            self.messageSent.emit(text)
+            self.chat_msg_sent.emit(text)
             self.chat_history.append(f"You: {text}")            
             self.message_input.clear()
 
+    def handle_msg_recieved(self, recieved_text: str):
+        text = recieved_text.strip()
+        self.chat_history.append(text)
