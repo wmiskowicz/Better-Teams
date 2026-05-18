@@ -1,10 +1,11 @@
+from ctypes import alignment
+from email.mime import text
 import sys
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
                              QPushButton, QTextEdit, QLineEdit, QFrame)
 from PyQt6.QtCore import pyqtSignal, Qt
 
 from controller.app_controller import AppController
-
 class ChatSidebar(QWidget):
     """
     Subclass representing the sidebar.
@@ -42,14 +43,28 @@ class ChatSidebar(QWidget):
         # History Display
         self.chat_history = QTextEdit()
         self.chat_history.setReadOnly(True)
-        self.chat_history.setStyleSheet("border: none; background: transparent;")
+        self.chat_history.setStyleSheet(
+            """
+            border: none;
+            background: transparent;
+            color: black;
+            """
+        )
 
         # --- Message Input Area ---
         input_layout = QHBoxLayout()
         
         self.message_input = QLineEdit()
         self.message_input.setPlaceholderText("Type message...")
-        self.message_input.setStyleSheet("border: 1px solid #CCC; border-radius: 5px; padding: 5px;")
+        self.message_input.setStyleSheet(
+            """
+            border: 1px solid #CCC;
+            border-radius: 5px;
+            padding: 5px;
+            background-color: white;
+            color: black;
+            """
+        )
         # Allow sending by pressing "Enter"
         self.message_input.returnPressed.connect(self.handle_send)
 
@@ -71,13 +86,37 @@ class ChatSidebar(QWidget):
     def handle_send(self):
         """Handler to grab text, emit signal, and clear the field."""
         text = self.message_input.text().strip()
+
         if text:
             self.chat_msg_sent.emit(text)
-            self.chat_history.append(f"You: {text}")            
+            self.handle_msg_recieved("You", text, True)
             self.message_input.clear()
 
-    def handle_msg_recieved(self, sender: str, recieved_text: str):
-        self.chat_history.append(f"{sender}: {recieved_text}")
+    def handle_msg_recieved(self, sender, msg, is_local=False):
+
+        if is_local:
+            name_color = "#2E8B57"   # zielony
+            alignment = "right"
+        else:
+            name_color = "#1E90FF"   # niebieski
+            alignment = "left"
+
+        formatted_message = f"""
+        <div align="{alignment}">
+            <span style="
+                color:{name_color};
+                font-weight:bold;
+            ">
+                {sender}
+            </span>
+            :
+            <span style="color:black;">
+                {msg}
+            </span>
+        </div>
+        """
+        
+        self.chat_history.append(formatted_message)
         
     def handle_status_updated(self, status: str):
         self.chat_history.append(status)

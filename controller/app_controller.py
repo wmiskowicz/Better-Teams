@@ -19,7 +19,7 @@ class AppController(QObject):
         self.capture_session.setAudioInput(self.audio_input)
         
         self.last_frame_time = 0
-        self.frame_interval = 1
+        self.frame_interval = 0.04
                 
         self.setup_network_worker()
 
