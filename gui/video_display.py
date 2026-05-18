@@ -40,13 +40,11 @@ class VideoDisplay(QFrame):
         self.hide_btn.setCheckable(True)
         self.hide_btn.setIconSize(QSize(32, 32))
         self.hide_btn.setIcon(self.svg_icon(self.HIDE_SVG))
-        # self.hide_btn.setToolTip("Hide / Show Camera")
 
         self.mute_btn = QPushButton()
         self.mute_btn.setCheckable(True)
         self.mute_btn.setIconSize(QSize(32, 32))
         self.mute_btn.setIcon(self.svg_icon(self.MUTE_SVG))
-        # self.mute_btn.setToolTip("Mute / Unmute")
         
         self.hide_btn.clicked.connect(self.handle_hide_clicked)
         self.mute_btn.clicked.connect(self.handle_mute_clicked)
@@ -130,7 +128,6 @@ class VideoDisplay(QFrame):
         return self.video_surface.videoSink()
 
     def handle_hide_clicked(self, checked):
-        # self.hide_btn.setText("Show" if checked else "Hide")
         self.hide_btn.setIcon(
             self.svg_icon(self.UNHIDE_SVG) if checked else self.svg_icon(self.HIDE_SVG)
         )
@@ -143,7 +140,6 @@ class VideoDisplay(QFrame):
         self.hideToggled.emit(checked)
 
     def handle_mute_clicked(self, checked):
-        # self.mute_btn.setText("Unmute" if checked else "Mute")
         self.mute_btn.setIcon(
             self.svg_icon(self.UNMUTE_SVG) if checked else self.svg_icon(self.MUTE_SVG)
         )
